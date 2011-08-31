@@ -48,13 +48,17 @@ class RubyFminer
     end
 
     # Feed Fminer
-    i=1
+    index=1
+    nr_pos=0
     smi_class_hash.each { |k,v|
       v>0 ? v=1.0 : v=0.0
-      @myFminer.AddCompound(k, i)
-      @myFminer.AddActivity(v, i)
-      i+=1
+      if (@myFminer.AddCompound(k, index))
+        @myFminer.AddActivity(v, index)
+        v==1.0 ? nr_pos+=1 : nr_pos=nr_pos
+        index+=1
+      end
     }
+    puts "Balance: #{nr_pos} / #{index} = #{nr_pos.to_f/index}" if (index>0)
 
     # gather results for every root node in vector instead of immediate output
     result_str = ""
@@ -68,5 +72,4 @@ class RubyFminer
 
   end
 end
-
 
