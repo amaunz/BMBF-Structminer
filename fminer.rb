@@ -17,12 +17,12 @@ class RubyFminer
   end
 
   # Fminer/BBRC re-implementation in Ruby
-  # @param[String] the SMI-File holding the molecules
-  # @param[String] the CLASS-File holding the activities
+  # @param[String] CSV-File holding all structures and assays
+  # @param[String] c-separated list of endpoints
   # @param[Integer] minimum frequency
   # @param[Boolean] aromatic perception
 
-  def run_fminer(csv_file, endpoint, min_freq, arom=true, regr=false)
+  def run_fminer(table, endpoints, min_freq=2, arom=true, regr=false)
     # Adjust settings
     @myFminer.Reset
     @myFminer.SetConsoleOut(false)
@@ -30,17 +30,19 @@ class RubyFminer
     @myFminer.SetAromatic(arom)
     @myFminer.SetRegression(regr)
 
-    begin
-      table=read_csv(csv_file)
-    rescue Exception=>e
-      puts e.message
-      puts e.backtrace
-    end
-
     # Read data
     smi_class_hash = {} 
+    smi_cas_hash = {} 
     table.each { |row|
-      smi_class_hash[row["SMILES"]]=row[endpoint.to_s].to_f
+      cluster_endpoint=0.0
+      endpoints.split(',').each { |endpoint|
+        endpoint=row[endpoint].to_f
+        endpoint>0 ? endpoint=1.0 : endpoint=0.0
+        cluster_endpoint+=endpoint
+      }
+      cluster_endpoint>=endpoints.split(',').size.to_f/2 ? cluster_endpoint=1 : cluster_endpoint=0
+      smi_class_hash[row["SMILES"]]=cluster_endpoint
+      smi_cas_hash[row["SMILES"]]=row["CAS"].to_i
     }
     if table.size != smi_class_hash.size
       puts "Error reading CSV data."
@@ -51,14 +53,13 @@ class RubyFminer
     index=1
     nr_pos=0
     smi_class_hash.each { |k,v|
-      v>0 ? v=1.0 : v=0.0
-      if (@myFminer.AddCompound(k, index))
-        @myFminer.AddActivity(v, index)
+      if (@myFminer.AddCompound(k, smi_cas_hash[k]))
+        @myFminer.AddActivity(v, smi_cas_hash[k])
         v==1.0 ? nr_pos+=1 : nr_pos=nr_pos
         index+=1
       end
     }
-    puts "Balance: #{nr_pos} / #{index} = #{nr_pos.to_f/index}" if (index>0)
+    puts "Balance: #{nr_pos} / #{index} = #{(100*nr_pos.to_f/index).round/100.to_f}" if (index>0)
 
     # gather results for every root node in vector instead of immediate output
     result_str = ""
