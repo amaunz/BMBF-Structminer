@@ -5,7 +5,6 @@ ENV['FMINER_SMARTS'] = '1'
 #ENV['FMINER_SILENT'] = '1'
 
 $fminer_file=File.expand_path(File.dirname(__FILE__)) + "/fminer.rb"
-$output_file=File.expand_path(File.dirname(__FILE__)) + "/fminer-output.csv"
 
 begin
   require $fminer_file
@@ -16,28 +15,27 @@ end
 $myFminer=RubyFminer.new()
 
 # Fminer/BBRC
-if ARGV.size < 2 or !File.exist?(ARGV[0])
-  puts "Argument error."
+if ARGV.size < 3 or !File.exist?(ARGV[0])
+  puts "Argument error: \"<input_file> <endpoint> <output_file>\""
+  puts "      endpoint: comma-separated values in one string"
   exit 1
 end
 
-$csv_file=ARGV[0]
+$input_file=ARGV[0]
 $endpoint=ARGV[1]
+$output_file=ARGV[2]
 
 table=nil
 begin
-  table=read_csv($csv_file)
+  table=read_csv($input_file)
 rescue Exception=>e
   puts e.message
   puts e.backtrace
 end
 
 output=$myFminer.run_fminer(table, $endpoint,2)
-#File.open($output_file,"w"){|f|f.puts output}
 
 patterns=YAML::load(output)
-puts output.class
-puts output.size
 
 all_smarts=Set.new
 occ_smarts=Hash.new
@@ -68,7 +66,7 @@ occ_smarts.each { |o,v|
   final_table << line
 }
 
-CSV.open('csvfile.csv', 'w') do |writer|
+CSV.open($output_file, 'w') do |writer|
   final_table.each { |line|
     writer << line
   }
