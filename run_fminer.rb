@@ -43,6 +43,7 @@ occ_smarts=Hash.new
 
 patterns.each { |p|
   smarts=p[0]
+  puts smarts.class
   all_smarts = all_smarts.add smarts; 
   occ_pos=p[2]; occ_neg=p[3]
   occs = (occ_pos << occ_neg).flatten.sort
@@ -54,12 +55,12 @@ patterns.each { |p|
   }
 }
 
-final_table = []
 header = ["CAS"]
 header << all_smarts.to_a
 header.flatten!
-final_table << header
+header_str = "\"" << header.join("\",\"") << "\""
 
+final_table = []
 occ_smarts.each { |o,v|
   line=Array.new
   line << o
@@ -69,8 +70,14 @@ occ_smarts.each { |o,v|
   final_table << line
 }
 
-CSV.open($output_file, 'w') do |writer|
-  final_table.each { |line|
-    writer << line
-  }
+csv_str = ""
+final_table.each { |line|
+  csv_str << line.join(',') << "\n"
+}
+
+File.open($output_file, 'w') do |f|
+  f.puts header_str
+  f.puts csv_str
 end
+
+
