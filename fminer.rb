@@ -22,13 +22,19 @@ class RubyFminer
   # @param[Integer] minimum frequency
   # @param[Boolean] aromatic perception
 
-  def run_fminer(table, endpoints, min_freq=2, arom=true, regr=false)
+  def run_fminer(table, endpoints, options={})
+    min_freq = options[:min_freq]
+    fsm = options[:fsm]
+
     # Adjust settings
     @myFminer.Reset
     @myFminer.SetConsoleOut(false)
     @myFminer.SetMinfreq(min_freq.to_i)
-    @myFminer.SetAromatic(arom)
-    @myFminer.SetRegression(regr)
+    if fsm
+      @myFminer.SetDynamicUpperBound(false)
+      @myFminer.SetBackbone(false)
+      @myFminer.SetChisqSig(0.0)
+    end
 
     # Read data
     smi_class_hash = {} 

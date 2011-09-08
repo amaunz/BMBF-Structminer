@@ -33,7 +33,8 @@ rescue Exception=>e
   puts e.backtrace
 end
 
-output=$myFminer.run_fminer(table, $endpoint,2)
+fsm_with_classes=true
+output=$myFminer.run_fminer(table, $endpoint, {:min_freq => 10, :fsm => fsm_with_classes})
 
 patterns=YAML::load(output)
 
@@ -41,7 +42,9 @@ all_smarts=Set.new
 occ_smarts=Hash.new
 
 patterns.each { |p|
-  smarts=p[0]; all_smarts = all_smarts.add smarts; occ_pos=p[2]; occ_neg=p[3]
+  smarts=p[0]
+  all_smarts = all_smarts.add smarts; 
+  occ_pos=p[2]; occ_neg=p[3]
   occs = (occ_pos << occ_neg).flatten.sort
   occs.each { |o|
     if occ_smarts[o].nil?
