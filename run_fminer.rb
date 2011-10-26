@@ -33,9 +33,16 @@ rescue Exception=>e
   puts e.backtrace
 end
 
-fsm_with_classes=true
-output=$myFminer.run_fminer(table, $endpoint, {:min_freq => 4, :fsm => fsm_with_classes})
+# Get a list of all CAS numbers
+cas_set=Set.new
+table.each { |row|
+  cas_set << row["CAS"]
+}
 
+min_freq=10
+fsm=true
+
+output=$myFminer.run_fminer(table, $endpoint, {:min_freq => min_freq, :fsm => fsm})
 patterns=YAML::load(output)
 
 all_smarts=Set.new
@@ -63,15 +70,24 @@ final_table = []
 occ_smarts.each { |o,v|
   line=Array.new
   line << o
+  if cas_set.member?(o.to_s)
+    cas_set = cas_set.delete(o.to_s)  
+  end
   (1..(header.size-1)).each {|i|
     line << (v.has_key?(header[i]) ? 1 : 0)
   } 
   final_table << line
 }
 
+
 csv_str = ""
 final_table.each { |line|
   csv_str << line.join(',') << "\n"
+}
+
+o_array = Array.new((header.size-1), 0)
+cas_set.each { |c|
+  csv_str << "#{c}," << o_array.join(',') << "\n"
 }
 
 File.open($output_file, 'w') do |f|
