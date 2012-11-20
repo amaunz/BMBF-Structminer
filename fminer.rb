@@ -18,11 +18,9 @@ class RubyFminer
 
   # Fminer/BBRC re-implementation in Ruby
   # @param[String] CSV-File holding all structures and assays
-  # @param[String] c-separated list of endpoints
-  # @param[Integer] minimum frequency
-  # @param[Boolean] aromatic perception
+  # @param[String] endpoint
 
-  def run_fminer(table, endpoints, options={})
+  def run_fminer(table, endpoint, options={})
     min_freq = options[:min_freq]
     fsm = options[:fsm]
 
@@ -36,36 +34,10 @@ class RubyFminer
       @myFminer.SetChisqSig(0.0)
     end
 
-    # Read data
-    smi_class_hash = {} 
-    smi_cas_hash = {} 
-    table.each { |row|
-      cluster_endpoint=0.0
-      endpoints.split(',').each { |endpoint|
-        endpoint=row[endpoint].to_f
-        endpoint>0 ? endpoint=1.0 : endpoint=0.0
-        cluster_endpoint+=endpoint
-      }
-      cluster_endpoint>=endpoints.split(',').size.to_f/2 ? cluster_endpoint=1 : cluster_endpoint=0
-      smi_class_hash[row["SMILES"]]=cluster_endpoint
-      smi_cas_hash[row["SMILES"]]=row["CAS"].to_i
+    table.each_with_index { |row,idx|
+      @myFminer.AddCompound(row["SMILES"],idx+1)
+      @myFminer.AddActivity(row[endpoint].to_f,idx+1)
     }
-    if table.size != smi_class_hash.size
-      puts "Error reading CSV data."
-      return 1
-    end
-
-    # Feed Fminer
-    index=1
-    nr_pos=0
-    smi_class_hash.each { |k,v|
-      if (@myFminer.AddCompound(k, smi_cas_hash[k]))
-        @myFminer.AddActivity(v, smi_cas_hash[k])
-        v==1.0 ? nr_pos+=1 : nr_pos=nr_pos
-        index+=1
-      end
-    }
-    puts "Balance: #{nr_pos} / #{index} = #{(100*nr_pos.to_f/index).round/100.to_f}" if (index>0)
 
     # gather results for every root node in vector instead of immediate output
     result_str = ""

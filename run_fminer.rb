@@ -1,8 +1,10 @@
 require 'yaml'
 require 'set'
 
+do_debug=false
 ENV['FMINER_SMARTS'] = '1'
-#ENV['FMINER_SILENT'] = '1'
+ENV['FMINER_SILENT'] = '1' if do_debug
+
 
 $fminer_file=File.expand_path(File.dirname(__FILE__)) + "/fminer.rb"
 
@@ -32,62 +34,82 @@ rescue Exception=>e
   puts e.message
   puts e.backtrace
 end
+puts "AM: table size: #{table.length}"  if do_debug 
+puts
 
-# Get a list of all CAS numbers
-cas_set=Set.new
-table.each { |row|
-  cas_set << row["CAS"]
-}
 
-min_freq=10
+
+min_freq=50
 fsm=true
+
+
+
+all_cas=table.collect { |row| row["CAS"] } # collect results later: use occ-1 to access all_cas index
+puts "AM: #{all_cas.join(', ')}" if do_debug 
+puts "AM: #{all_cas.length}" if do_debug 
+puts
+
 
 output=$myFminer.run_fminer(table, $endpoint, {:min_freq => min_freq, :fsm => fsm})
 patterns=YAML::load(output)
-
 all_smarts=Set.new
-occ_smarts=Hash.new
+occ_smarts=(1..all_cas.length).to_a.inject({}) { |h,idx|
+  h[idx]=Hash.new
+  h
+}
+
+
+puts "AM: #{occ_smarts.inspect}" if do_debug
+puts "AM: #{occ_smarts.length}" if do_debug
+puts
 
 patterns.each { |p|
   smarts=p[0]
   all_smarts = all_smarts.add smarts; 
-  occ_pos=p[2]; occ_neg=p[3]
-  occs = (occ_pos << occ_neg).flatten.sort
+  occ_pos=p[2]; occ_neg=p[3] # Assumes only two classes
+  occs = (occ_pos + occ_neg).sort
   occs.each { |o|
-    if occ_smarts[o].nil?
-      occ_smarts[o]=Hash.new
-    end
-    occ_smarts[o][smarts] = 1
+    occ_smarts[o.to_i][smarts] = 1
   }
 }
+#puts "AM: #{occ_smarts.inspect}" if do_debug
+
+puts
+puts "AM: --- #{occ_smarts[0].inspect}" if do_debug
+puts "AM: #{occ_smarts[1].inspect}" if do_debug
+puts "AM: #{occ_smarts[2].inspect}" if do_debug
+puts "AM: --- #{occ_smarts[3].inspect}" if do_debug
+puts
+
+#puts
+#puts "AM: --- #{occ_smarts[259].inspect}" if do_debug
+#puts "AM: #{occ_smarts[260].inspect}" if do_debug
+#puts "AM: #{occ_smarts[261].inspect}" if do_debug
+#puts "AM: #{occ_smarts[262].inspect}" if do_debug
+#puts "AM: --- #{occ_smarts[263].inspect}" if do_debug
+#puts
+#puts "AM: #{occ_smarts.length}" if do_debug
+#puts
+
 
 header = ["CAS"]
-header << all_smarts.to_a
+header << all_smarts.to_a # This will give order of features for filling table
 header.flatten!
 header_str = "\"" << header.join("\",\"") << "\""
 
 final_table = []
-occ_smarts.each { |o,v|
+(1..all_cas.length).to_a.each { |occ_idx|
   line=Array.new
-  line << o
-  if cas_set.member?(o.to_s)
-    cas_set = cas_set.delete(o.to_s)  
-  end
-  (1..(header.size-1)).each {|i|
-    line << (v.has_key?(header[i]) ? 1 : 0)
-  } 
+  line<<all_cas[occ_idx-1]
+  (1..(header.size-1)).each { |i|
+    line << (occ_smarts[occ_idx].has_key?(header[i]) ? 1 : 0)
+  }
   final_table << line
 }
-
 
 csv_str = ""
 final_table.each { |line|
   csv_str << line.join(',') << "\n"
-}
-
-o_array = Array.new((header.size-1), 0)
-cas_set.each { |c|
-  csv_str << "#{c}," << o_array.join(',') << "\n"
 }
 
 File.open($output_file, 'w') do |f|
